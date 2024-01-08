@@ -1,0 +1,65 @@
+#!/bin/bash
+# Copyright (C) 2023 Daniel Miedzyblocki
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <https://www.gnu.org/licenses/>.
+#
+# Icon=application-xhtml+xml
+# Exec=appstream-cat %c %f
+# Path=/tmp
+#
+# ASCAT_CAT='--no-headers --window-icon=
+#   /usr/share/icons/breeze/mimetypes/16/application-xhtml+xml.svg'
+# ASCAT_FILE="$ASCAT_CAT" # no spaces in options
+# ASCAT_TMP="$XDG_RUNTIME_DIR"
+
+app="${1:+"title=$1"}"
+
+shopt -s nullglob
+usr="$XDG_DATA_HOME/flatpak/appstream"
+sys='/var/lib/flatpak/appstream'
+alt='/usr/share/app-info/xmls'
+xml='appstream.xml.gz'
+sub="active/$xml"
+cmd="yad --list --width=600 --height=300 --no-markup"
+cmd="$cmd $ASCAT_FILE --column= --separator="
+xml="${2:-"`$cmd --"$app" {"$usr",$sys}/*/*/{$xml,$sub} $alt/*.xml.gz`"}"
+
+# xml="`gzip -cdf "$xml"`" || exit # Fails if tags collapsed
+xml="`xmllint --format "$xml"`" || exit
+# xml="`appstream-util dump "$xml"`" || exit
+exp='xmllint --xpath /components/component/categories/category/text() -'
+# sub="${ASCAT_DEL+"/'/d; "}i ${ASCAT_CHK:-"FALSE"}" # Default "i FALSE"
+sub="${ASCAT_DEL-"/'/d; "}i ${ASCAT_CHK:-"FALSE"}" # Default "/'/d; i FALSE"
+cmd="yad --list --width=300 --height=800 --no-markup $ASCAT_CAT"
+cmd="$cmd --column= --column= --checklist --separator= --print-column=2"
+exp="`$exp <<< "$xml" | sort -u | sed "$sub" | $cmd --"$app"`" || exit
+
+name="${ASCAT_TMP:-"$PWD"}/`basename "$0"`"
+mkdir -pm 777 "$name" && cd "$name"
+name="`xmllint --xpath 'string(/components/@origin)' - <<< "$xml"`"
+printf -v name "$name%(_%F_%T)T" -1
+
+sed '/^<components/q' <<< "$xml" > "$name.xml"
+sub="categories/category='"
+exp="${exp//$'\n'/"' or $sub"}"
+xmllint --xpath "/components/component[$sub$exp']" - <<< "$xml" >> "$name.xml"
+# Without component type desktop, status-html fails
+echo '<component type="desktop-application"><id>null</id>' >> "$name.xml"
+echo '</component></components>' >> "$name.xml"
+
+appstream-util status-html "$name.xml" "$name.html"
+rm -f "$name.xml"
+exp='/^<style/a\#app-null {\n\tdisplay: none;\n}'
+# sed -i "${ASID_SED-"$scr"}" "$name.html"
+cat <<< "`sed "${ASID_SED-"$exp"}" "$name.html"`" > "$name.html"
+xdg-open "file://$PWD/$name.html"

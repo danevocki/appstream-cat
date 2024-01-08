@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Appstream Catalogues
+Icon=application-xhtml+xml
+Exec=appstream-cat %c %f
+Path=/tmp
+Terminal=false
+MimeType=application/gzip;
+Categories=System;

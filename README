@@ -1,0 +1,5 @@
+Bash script using YAD (Yet Another Dialog) to open HTML page based on categories
+selected for Appstream catalog.
+
+Works on Fedora 37 and 38.
+Requires yad.
