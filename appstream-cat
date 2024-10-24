@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (C) 2023 Daniel Miedzyblocki
+# Copyright (C) 2023, 2024 Daniel Miedzyblocki
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -17,12 +17,12 @@
 # Exec=appstream-cat %c %f
 # Path=/tmp
 #
-# ASCAT_CAT='--no-headers --window-icon=
-#   /usr/share/icons/breeze/mimetypes/16/application-xhtml+xml.svg'
+# ASCAT_CAT='--window-icon=[yad] --no-headers'
 # ASCAT_FILE="$ASCAT_CAT" # no spaces in options
 # ASCAT_TMP="$XDG_RUNTIME_DIR"
 
-app="${1:+"title=$1"}"
+ico='--window-icon=application-xhtml+xml'
+app="--${1:+"title=$1"}"
 
 shopt -s nullglob
 usr="$XDG_DATA_HOME/flatpak/appstream"
@@ -30,9 +30,9 @@ sys='/var/lib/flatpak/appstream'
 alt='/usr/share/app-info/xmls'
 xml='appstream.xml.gz'
 sub="active/$xml"
-cmd="yad --list --width=600 --height=300 --no-markup"
-cmd="$cmd $ASCAT_FILE --column= --separator="
-xml="${2:-"`$cmd --"$app" {"$usr",$sys}/*/*/{$xml,$sub} $alt/*.xml.gz`"}"
+cmd=( yad --list "$ico" --width=600 --height=300 --no-markup )
+cmd+=( $ASCAT_FILE --column= --separator= "$app" )
+xml="${2:-"`"${cmd[@]}" {"$usr","$sys"}/*/*/{"$xml","$sub"} "$alt"/*.xml.gz`"}"
 
 # xml="`gzip -cdf "$xml"`" || exit # Fails if tags collapsed
 xml="`xmllint --format "$xml"`" || exit
@@ -40,9 +40,9 @@ xml="`xmllint --format "$xml"`" || exit
 exp='xmllint --xpath /components/component/categories/category/text() -'
 # sub="${ASCAT_DEL+"/'/d; "}i ${ASCAT_CHK:-"FALSE"}" # Default "i FALSE"
 sub="${ASCAT_DEL-"/'/d; "}i ${ASCAT_CHK:-"FALSE"}" # Default "/'/d; i FALSE"
-cmd="yad --list --width=300 --height=800 --no-markup $ASCAT_CAT"
-cmd="$cmd --column= --column= --checklist --separator= --print-column=2"
-exp="`$exp <<< "$xml" | sort -u | sed "$sub" | $cmd --"$app"`" || exit
+cmd=( yad --list "$ico" --width=300 --height=800 --no-markup $ASCAT_CAT )
+cmd+=( --column= --column= --checklist --separator= --print-column=2 "$app" )
+exp="`$exp <<< "$xml" | sort -u | sed "$sub" | "${cmd[@]}"`" || exit
 
 name="${ASCAT_TMP:-"$PWD"}/`basename "$0"`"
 mkdir -pm 777 "$name" && cd "$name"
@@ -62,4 +62,4 @@ rm -f "$name.xml"
 exp='/^<style/a\#app-null {\n\tdisplay: none;\n}'
 # sed -i "${ASID_SED-"$scr"}" "$name.html"
 cat <<< "`sed "${ASID_SED-"$exp"}" "$name.html"`" > "$name.html"
-xdg-open "file://$PWD/$name.html"
+exec xdg-open "file://$PWD/$name.html" # gio open "file://$PWD/$name.html"
